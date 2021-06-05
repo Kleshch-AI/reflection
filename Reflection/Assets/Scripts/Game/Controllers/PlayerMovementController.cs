@@ -1,6 +1,5 @@
 using UnityEngine;
 using Reflection.Utils;
-using DG.Tweening;
 using System.Collections;
 
 namespace Reflection.Controllers
@@ -27,7 +26,8 @@ namespace Reflection.Controllers
         {
             None,
             Walking,
-            Running
+            Running,
+            Falling
         }
 
         [SerializeField] private CharacterController cc;
@@ -38,14 +38,45 @@ namespace Reflection.Controllers
         [Header("Running Step")]
         [SerializeField] StepSettings runningStepSettings;
 
+        [Header("Jump")]
+        [SerializeField] private float jumpHeight;
+        [SerializeField] private float jumpLength;
+
+        [Header("Physics")]
+        [SerializeField] private float gravity;
+        [SerializeField] private float groundDistance;
+        [SerializeField] private LayerMask groundLayerMask;
+        [SerializeField] private Transform groundCheckTransform;
+
         private bool isMoving;
         private MoveType moveType;
         private float stepStartTime;
         private float stepDuration;
+        private float jumpPrepareTime;
+        private bool isReadyToJump;
+
+        private bool isGrounded => Physics.CheckSphere(groundCheckTransform.position, groundDistance,
+            groundLayerMask, QueryTriggerInteraction.Ignore);
 
         private void Update()
         {
+            if (Input.GetButtonDown(InputUtils.ButtonName.Jump))
+            {
+                PrepareJump();
+            }
+
+            if (Input.GetButtonUp(InputUtils.ButtonName.Jump))
+            {
+                TryJump();
+            }
+
             if (isMoving) return;
+
+            if (!isGrounded)
+            {
+                StartCoroutine(Fall());
+                return;
+            }
 
             var motionInput = new Vector2
                 (
@@ -91,6 +122,89 @@ namespace Reflection.Controllers
 
                 yield return new WaitForEndOfFrame();
             }
+
+            isMoving = false;
+        }
+
+        private IEnumerator Fall()
+        {
+            isMoving = true;
+
+            moveType = MoveType.Falling;
+
+            var fallVelocity = Vector3.zero;
+            while (!isGrounded)
+            {
+                fallVelocity.y -= gravity * Time.deltaTime;
+                cc.Move(fallVelocity);
+
+                yield return new WaitForEndOfFrame();
+            }
+
+            isMoving = false;
+        }
+
+        private void PrepareJump()
+        {
+            Debug.Log("PrepareJump");
+            isReadyToJump = moveType == MoveType.Walking || moveType == MoveType.Running;
+            Debug.Log($"isReadyToJump = {isReadyToJump}");
+
+            if (isReadyToJump) jumpPrepareTime = Time.time;
+        }
+
+        private void TryJump()
+        {
+            Debug.Log("TryJump");
+
+            if (!isReadyToJump) return;
+
+            if (!isGrounded) return;
+
+            var jumpWaitTime = Time.time - jumpPrepareTime;
+            var stepDuration = moveType == MoveType.Walking ? walkingStepSettings.StepDuration :
+                runningStepSettings.StepDuration;
+
+            var jumpForce = jumpWaitTime / stepDuration;
+            if (jumpForce > 1) return;
+
+            StopAllCoroutines();
+
+            StartCoroutine(Jump(jumpForce, stepDuration));
+        }
+
+        private IEnumerator Jump(float jumpForce, float stepDuration)
+        {
+            isMoving = true;
+
+            var risePos = transform.position;
+            var setPos = transform.position + transform.forward * jumpForce * jumpLength;
+            var center = (risePos + setPos) * 0.5f;
+            center.y += jumpHeight;
+            var relativeRisePos = risePos - center;
+            var relativeSetPos = setPos - center;
+            var startTime = Time.time;
+            var jumpDuration = stepDuration * 2f * jumpForce;
+
+            while (transform.position != setPos)
+            {
+                // cc.Move((center - transform.position) * Time.deltaTime);
+                var timeFrac = (Time.time - startTime) / jumpDuration;
+                var newPos = Vector3.Slerp(relativeRisePos, relativeSetPos, timeFrac);
+
+                cc.Move(newPos - transform.position);
+                cc.Move(center);
+
+                yield return new WaitForEndOfFrame();
+            }
+
+            // while (transform.position != setPos)
+            // {
+            //     cc.Move((setPos - transform.position) * Time.deltaTime);
+            //     // var newPos = Vector3.Slerp(relativeRisePos, relativeSetPos, );
+
+            //     yield return new WaitForEndOfFrame();
+            // }
 
             isMoving = false;
         }
