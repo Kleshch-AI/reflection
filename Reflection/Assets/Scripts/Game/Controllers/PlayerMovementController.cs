@@ -54,6 +54,7 @@ namespace Reflection.Controllers
         private float stepDuration;
         private float jumpPrepareTime;
         private bool isReadyToJump;
+        private Vector3 direction;
 
         private bool isGrounded => Physics.CheckSphere(groundCheckTransform.position, groundDistance,
             groundLayerMask, QueryTriggerInteraction.Ignore);
@@ -74,6 +75,7 @@ namespace Reflection.Controllers
 
             if (!isGrounded)
             {
+                StopAllCoroutines();
                 StartCoroutine(Fall());
                 return;
             }
@@ -89,7 +91,8 @@ namespace Reflection.Controllers
                 if (Input.GetKey(KeyCode.LeftShift)) moveType = MoveType.Running;
                 else moveType = MoveType.Walking;
 
-                StartCoroutine(TakeStep(motionInput.x * transform.right + motionInput.y * transform.forward));
+                direction = motionInput.x * transform.right + motionInput.y * transform.forward;
+                StartCoroutine(TakeStep());
             }
             else
             {
@@ -97,7 +100,7 @@ namespace Reflection.Controllers
             }
         }
 
-        private IEnumerator TakeStep(Vector3 direction)
+        private IEnumerator TakeStep()
         {
             if (moveType == MoveType.None) yield break;
 
@@ -146,17 +149,13 @@ namespace Reflection.Controllers
 
         private void PrepareJump()
         {
-            Debug.Log("PrepareJump");
             isReadyToJump = moveType == MoveType.Walking || moveType == MoveType.Running;
-            Debug.Log($"isReadyToJump = {isReadyToJump}");
 
             if (isReadyToJump) jumpPrepareTime = Time.time;
         }
 
         private void TryJump()
         {
-            Debug.Log("TryJump");
-
             if (!isReadyToJump) return;
 
             if (!isGrounded) return;
@@ -178,33 +177,25 @@ namespace Reflection.Controllers
             isMoving = true;
 
             var risePos = transform.position;
-            var setPos = transform.position + transform.forward * jumpForce * jumpLength;
+            var setPos = transform.position + direction * jumpForce * jumpLength;
             var center = (risePos + setPos) * 0.5f;
-            center.y += jumpHeight;
-            var relativeRisePos = risePos - center;
-            var relativeSetPos = setPos - center;
+
             var startTime = Time.time;
             var jumpDuration = stepDuration * 2f * jumpForce;
 
-            while (transform.position != setPos)
+            while (Time.time - startTime < jumpDuration)
             {
-                // cc.Move((center - transform.position) * Time.deltaTime);
+                center -= new Vector3(0, 1f / jumpHeight, 0);
+                var relativeRisePos = risePos - center;
+                var relativeSetPos = setPos - center;
                 var timeFrac = (Time.time - startTime) / jumpDuration;
                 var newPos = Vector3.Slerp(relativeRisePos, relativeSetPos, timeFrac);
 
-                cc.Move(newPos - transform.position);
-                cc.Move(center);
+                var movement = newPos + center - transform.position;
+                cc.Move(movement);
 
                 yield return new WaitForEndOfFrame();
             }
-
-            // while (transform.position != setPos)
-            // {
-            //     cc.Move((setPos - transform.position) * Time.deltaTime);
-            //     // var newPos = Vector3.Slerp(relativeRisePos, relativeSetPos, );
-
-            //     yield return new WaitForEndOfFrame();
-            // }
 
             isMoving = false;
         }
