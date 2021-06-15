@@ -201,6 +201,7 @@ GameObject:
   - component: {fileID: 597908496}
   - component: {fileID: 597908495}
   - component: {fileID: 597908494}
+  - component: {fileID: 597908497}
   m_Layer: 6
   m_Name: Cube
   m_TagString: Untagged
@@ -284,6 +285,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 597908492}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &597908497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 597908492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c13ee27634dc2f245a263f363542c321, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  jumpLength: 8
+  jumpHeight: 2
 --- !u!1 &691589767
 GameObject:
   m_ObjectHideFlags: 0
@@ -798,6 +813,14 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
+  jumpHeight: 20
+  jumpLength: 10
+  gravity: 0.8
+  groundDistance: 0.5
+  groundLayerMask:
+    serializedVersion: 2
+    m_Bits: 64
+  groundCheckTransform: {fileID: 691589768}
 --- !u!143 &1213364192
 CharacterController:
   m_ObjectHideFlags: 0

@@ -1,6 +1,5 @@
 using UnityEngine;
 using Reflection.Utils;
-using DG.Tweening;
 using System.Collections;
 
 namespace Reflection.Controllers
@@ -27,7 +26,8 @@ namespace Reflection.Controllers
         {
             None,
             Walking,
-            Running
+            Running,
+            Falling
         }
 
         [SerializeField] private CharacterController cc;
@@ -38,14 +38,47 @@ namespace Reflection.Controllers
         [Header("Running Step")]
         [SerializeField] StepSettings runningStepSettings;
 
+        [Header("Jump")]
+        [SerializeField] private float jumpHeight;
+        [SerializeField] private float jumpLength;
+
+        [Header("Physics")]
+        [SerializeField] private float gravity;
+        [SerializeField] private float groundDistance;
+        [SerializeField] private LayerMask groundLayerMask;
+        [SerializeField] private Transform groundCheckTransform;
+
         private bool isMoving;
         private MoveType moveType;
         private float stepStartTime;
         private float stepDuration;
+        private float jumpPrepareTime;
+        private bool isReadyToJump;
+        private Vector3 direction;
+
+        private bool isGrounded => Physics.CheckSphere(groundCheckTransform.position, groundDistance,
+            groundLayerMask, QueryTriggerInteraction.Ignore);
 
         private void Update()
         {
+            if (Input.GetButtonDown(InputUtils.ButtonName.Jump))
+            {
+                PrepareJump();
+            }
+
+            if (Input.GetButtonUp(InputUtils.ButtonName.Jump))
+            {
+                TryJump();
+            }
+
             if (isMoving) return;
+
+            if (!isGrounded)
+            {
+                StopAllCoroutines();
+                StartCoroutine(Fall());
+                return;
+            }
 
             var motionInput = new Vector2
                 (
@@ -58,7 +91,8 @@ namespace Reflection.Controllers
                 if (Input.GetKey(KeyCode.LeftShift)) moveType = MoveType.Running;
                 else moveType = MoveType.Walking;
 
-                StartCoroutine(TakeStep(motionInput.x * transform.right + motionInput.y * transform.forward));
+                direction = motionInput.x * transform.right + motionInput.y * transform.forward;
+                StartCoroutine(TakeStep());
             }
             else
             {
@@ -66,7 +100,7 @@ namespace Reflection.Controllers
             }
         }
 
-        private IEnumerator TakeStep(Vector3 direction)
+        private IEnumerator TakeStep()
         {
             if (moveType == MoveType.None) yield break;
 
@@ -87,6 +121,77 @@ namespace Reflection.Controllers
 
                 var newPosition = Vector3.Lerp(position, endPostion, percent);
                 var movement = newPosition - transform.position;
+                cc.Move(movement);
+
+                yield return new WaitForEndOfFrame();
+            }
+
+            isMoving = false;
+        }
+
+        private IEnumerator Fall()
+        {
+            isMoving = true;
+
+            moveType = MoveType.Falling;
+
+            var fallVelocity = Vector3.zero;
+            while (!isGrounded)
+            {
+                fallVelocity.y -= gravity * Time.deltaTime;
+                cc.Move(fallVelocity);
+
+                yield return new WaitForEndOfFrame();
+            }
+
+            isMoving = false;
+        }
+
+        private void PrepareJump()
+        {
+            isReadyToJump = moveType == MoveType.Walking || moveType == MoveType.Running;
+
+            if (isReadyToJump) jumpPrepareTime = Time.time;
+        }
+
+        private void TryJump()
+        {
+            if (!isReadyToJump) return;
+
+            if (!isGrounded) return;
+
+            var jumpWaitTime = Time.time - jumpPrepareTime;
+            var stepDuration = moveType == MoveType.Walking ? walkingStepSettings.StepDuration :
+                runningStepSettings.StepDuration;
+
+            var jumpForce = jumpWaitTime / stepDuration;
+            if (jumpForce > 1) return;
+
+            StopAllCoroutines();
+
+            StartCoroutine(Jump(jumpForce, stepDuration));
+        }
+
+        private IEnumerator Jump(float jumpForce, float stepDuration)
+        {
+            isMoving = true;
+
+            var risePos = transform.position;
+            var setPos = transform.position + direction * jumpForce * jumpLength;
+            var center = (risePos + setPos) * 0.5f;
+
+            var startTime = Time.time;
+            var jumpDuration = stepDuration * 2f * jumpForce;
+
+            while (Time.time - startTime < jumpDuration)
+            {
+                center -= new Vector3(0, 1f / jumpHeight, 0);
+                var relativeRisePos = risePos - center;
+                var relativeSetPos = setPos - center;
+                var timeFrac = (Time.time - startTime) / jumpDuration;
+                var newPos = Vector3.Slerp(relativeRisePos, relativeSetPos, timeFrac);
+
+                var movement = newPos + center - transform.position;
                 cc.Move(movement);
 
                 yield return new WaitForEndOfFrame();
