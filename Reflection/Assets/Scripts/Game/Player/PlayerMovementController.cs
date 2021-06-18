@@ -2,14 +2,14 @@ using UnityEngine;
 using Reflection.Utils;
 using System.Collections;
 
-namespace Reflection.Controllers
+namespace Reflection.Game.Player
 {
 
-    public class PlayerMovementController : MonoBehaviour
+    internal class PlayerMovementController : MonoBehaviour
     {
 
         [System.Serializable]
-        public struct StepSettings
+        internal struct StepSettings
         {
             [SerializeField] private float stepLength;
             [SerializeField] private float stepDuration;
@@ -20,14 +20,6 @@ namespace Reflection.Controllers
             public float StepDuration => stepDuration;
             public float StepRandomPercent => stepRandomPercent;
             public AnimationCurve StepEasing => stepEasing;
-        }
-
-        public enum MoveType
-        {
-            None,
-            Walking,
-            Running,
-            Falling
         }
 
         [SerializeField] private CharacterController cc;
@@ -49,7 +41,6 @@ namespace Reflection.Controllers
         [SerializeField] private Transform groundCheckTransform;
 
         private bool isMoving;
-        private MoveType moveType;
         private float stepStartTime;
         private float stepDuration;
         private float jumpPrepareTime;
@@ -88,25 +79,25 @@ namespace Reflection.Controllers
 
             if (motionInput.x != 0 || motionInput.y != 0)
             {
-                if (Input.GetKey(KeyCode.LeftShift)) moveType = MoveType.Running;
-                else moveType = MoveType.Walking;
+                if (Input.GetKey(KeyCode.LeftShift)) PlayerContext.MoveType.Value = MoveType.Running;
+                else PlayerContext.MoveType.Value = MoveType.Walking;
 
                 direction = motionInput.x * transform.right + motionInput.y * transform.forward;
                 StartCoroutine(TakeStep());
             }
             else
             {
-                moveType = MoveType.None;
+                PlayerContext.MoveType.Value = MoveType.None;
             }
         }
 
         private IEnumerator TakeStep()
         {
-            if (moveType == MoveType.None) yield break;
+            if (PlayerContext.MoveType.Value == MoveType.None) yield break;
 
             isMoving = true;
 
-            var stepSettings = moveType == MoveType.Walking ? walkingStepSettings : runningStepSettings;
+            var stepSettings = PlayerContext.MoveType.Value == MoveType.Walking ? walkingStepSettings : runningStepSettings;
 
             var randomSign = Random.Range(0, 2) * 2 - 1;
             stepDuration = stepSettings.StepDuration + randomSign * stepSettings.StepDuration * stepSettings.StepRandomPercent;
@@ -133,7 +124,7 @@ namespace Reflection.Controllers
         {
             isMoving = true;
 
-            moveType = MoveType.Falling;
+            PlayerContext.MoveType.Value = MoveType.Falling;
 
             var fallVelocity = Vector3.zero;
             while (!isGrounded)
@@ -149,7 +140,7 @@ namespace Reflection.Controllers
 
         private void PrepareJump()
         {
-            isReadyToJump = moveType == MoveType.Walking || moveType == MoveType.Running;
+            isReadyToJump = PlayerContext.MoveType.Value == MoveType.Walking || PlayerContext.MoveType.Value == MoveType.Running;
 
             if (isReadyToJump) jumpPrepareTime = Time.time;
         }
@@ -161,7 +152,7 @@ namespace Reflection.Controllers
             if (!isGrounded) return;
 
             var jumpWaitTime = Time.time - jumpPrepareTime;
-            var stepDuration = moveType == MoveType.Walking ? walkingStepSettings.StepDuration :
+            var stepDuration = PlayerContext.MoveType.Value == MoveType.Walking ? walkingStepSettings.StepDuration :
                 runningStepSettings.StepDuration;
 
             var jumpForce = jumpWaitTime / stepDuration;

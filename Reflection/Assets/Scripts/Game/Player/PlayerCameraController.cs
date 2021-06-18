@@ -1,21 +1,20 @@
 using Reflection.Utils;
 using UnityEngine;
 
-namespace Reflection.Controllers
+namespace Reflection.Game.Player
 {
 
     internal class PlayerCameraController : MonoBehaviour
     {
 
-
-        [SerializeField] private Transform playerBodyTr; // TODO: no need for direct inspector reference
-        [SerializeField] private float sensitivity;
+        [SerializeField] private Transform playerBodyTr;
+        [SerializeField] private float sensitivity = 1000;
 
         private float upDownRotation;
 
         private void Start()
         {
-            Cursor.lockState = CursorLockMode.Locked; // TODO: shouldn't be here
+            Cursor.lockState = CursorLockMode.Locked;
         }
 
         private void Update()
