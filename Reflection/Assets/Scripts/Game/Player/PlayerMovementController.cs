@@ -8,37 +8,9 @@ namespace Reflection.Game.Player
     internal class PlayerMovementController : MonoBehaviour
     {
 
-        [System.Serializable]
-        internal struct StepSettings
-        {
-            [SerializeField] private float stepLength;
-            [SerializeField] private float stepDuration;
-            [SerializeField] [Range(0f, 1f)] private float stepRandomPercent;
-            [SerializeField] private AnimationCurve stepEasing;
-
-            public float StepLength => stepLength;
-            public float StepDuration => stepDuration;
-            public float StepRandomPercent => stepRandomPercent;
-            public AnimationCurve StepEasing => stepEasing;
-        }
-
         [SerializeField] private CharacterController cc;
-
-        [Header("Walking Step")]
-        [SerializeField] StepSettings walkingStepSettings;
-
-        [Header("Running Step")]
-        [SerializeField] StepSettings runningStepSettings;
-
-        [Header("Jump")]
-        [SerializeField] private float jumpHeight;
-        [SerializeField] private float jumpLength;
-
-        [Header("Physics")]
-        [SerializeField] private float gravity;
-        [SerializeField] private float groundDistance;
-        [SerializeField] private LayerMask groundLayerMask;
-        [SerializeField] private Transform groundCheckTransform;
+        [SerializeField] private Transform groundCheck;
+        [SerializeField] private PlayerSettings settings;
 
         private bool isMoving;
         private float stepStartTime;
@@ -47,8 +19,8 @@ namespace Reflection.Game.Player
         private bool isReadyToJump;
         private Vector3 direction;
 
-        private bool isGrounded => Physics.CheckSphere(groundCheckTransform.position, groundDistance,
-            groundLayerMask, QueryTriggerInteraction.Ignore);
+        private bool isGrounded => Physics.CheckSphere(groundCheck.position, settings.GroundDistance,
+            settings.GroundLayerMask, QueryTriggerInteraction.Ignore);
 
         private void Update()
         {
@@ -97,7 +69,7 @@ namespace Reflection.Game.Player
 
             isMoving = true;
 
-            var stepSettings = PlayerContext.MoveType.Value == MoveType.Walking ? walkingStepSettings : runningStepSettings;
+            var stepSettings = PlayerContext.MoveType.Value == MoveType.Walking ? settings.WalkingStepSettings : settings.RunningStepSettings;
 
             var randomSign = Random.Range(0, 2) * 2 - 1;
             stepDuration = stepSettings.StepDuration + randomSign * stepSettings.StepDuration * stepSettings.StepRandomPercent;
@@ -129,7 +101,7 @@ namespace Reflection.Game.Player
             var fallVelocity = Vector3.zero;
             while (!isGrounded)
             {
-                fallVelocity.y -= gravity * Time.deltaTime;
+                fallVelocity.y -= settings.Gravity * Time.deltaTime;
                 cc.Move(fallVelocity);
 
                 yield return new WaitForEndOfFrame();
@@ -152,8 +124,8 @@ namespace Reflection.Game.Player
             if (!isGrounded) return;
 
             var jumpWaitTime = Time.time - jumpPrepareTime;
-            var stepDuration = PlayerContext.MoveType.Value == MoveType.Walking ? walkingStepSettings.StepDuration :
-                runningStepSettings.StepDuration;
+            var stepDuration = PlayerContext.MoveType.Value == MoveType.Walking ? settings.WalkingStepSettings.StepDuration :
+                settings.RunningStepSettings.StepDuration;
 
             var jumpForce = jumpWaitTime / stepDuration;
             if (jumpForce > 1) return;
@@ -168,7 +140,7 @@ namespace Reflection.Game.Player
             isMoving = true;
 
             var risePos = transform.position;
-            var setPos = transform.position + direction * jumpForce * jumpLength;
+            var setPos = transform.position + direction * jumpForce * settings.JumpLength;
             var center = (risePos + setPos) * 0.5f;
 
             var startTime = Time.time;
@@ -176,7 +148,7 @@ namespace Reflection.Game.Player
 
             while (Time.time - startTime < jumpDuration)
             {
-                center -= new Vector3(0, 1f / jumpHeight, 0);
+                center -= new Vector3(0, 1f / settings.JumpHeight, 0);
                 var relativeRisePos = risePos - center;
                 var relativeSetPos = setPos - center;
                 var timeFrac = (Time.time - startTime) / jumpDuration;

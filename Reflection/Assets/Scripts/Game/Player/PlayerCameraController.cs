@@ -8,7 +8,7 @@ namespace Reflection.Game.Player
     {
 
         [SerializeField] private Transform playerBodyTr;
-        [SerializeField] private float sensitivity = 1000;
+        [SerializeField] private PlayerSettings settings;
 
         private float upDownRotation;
 
@@ -25,7 +25,7 @@ namespace Reflection.Game.Player
                     Input.GetAxisRaw(InputUtils.AxisName.MouseX), 
                     Input.GetAxisRaw(InputUtils.AxisName.MouseY)
                 )
-                * sensitivity
+                * settings.Sensitivity
                 * Time.deltaTime;
 
             upDownRotation = Mathf.Clamp(upDownRotation - lookInput.y, -90f, 90f);
