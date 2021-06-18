@@ -1,6 +1,7 @@
 using UnityEngine;
 using Reflection.Utils;
 using System.Collections;
+using DG.Tweening;
 
 namespace Reflection.Game.Player
 {
@@ -10,6 +11,7 @@ namespace Reflection.Game.Player
 
         [SerializeField] private CharacterController cc;
         [SerializeField] private Transform groundCheck;
+        [SerializeField] private Transform playerHeadTr;
         [SerializeField] private PlayerSettings settings;
 
         private bool isMoving;
@@ -18,6 +20,7 @@ namespace Reflection.Game.Player
         private float jumpPrepareTime;
         private bool isReadyToJump;
         private Vector3 direction;
+        private int headTiltDirection = 1;
 
         private bool isGrounded => Physics.CheckSphere(groundCheck.position, settings.GroundDistance,
             settings.GroundLayerMask, QueryTriggerInteraction.Ignore);
@@ -72,11 +75,22 @@ namespace Reflection.Game.Player
             var stepSettings = PlayerContext.MoveType.Value == MoveType.Walking ? settings.WalkingStepSettings : settings.RunningStepSettings;
 
             var randomSign = Random.Range(0, 2) * 2 - 1;
-            stepDuration = stepSettings.StepDuration + randomSign * stepSettings.StepDuration * stepSettings.StepRandomPercent;
+            var randomSeed = Random.Range(0, stepSettings.StepRandomPercent);
+            stepDuration = stepSettings.StepDuration + randomSign * stepSettings.StepDuration * randomSeed;
             stepStartTime = Time.time;
+
+            // PlayerContext.OnStep.OnNext(stepDuration);
 
             var position = transform.position;
             var endPostion = position + direction * stepSettings.StepLength;
+
+            headTiltDirection = -headTiltDirection;
+            var rotation = playerHeadTr.localRotation.eulerAngles.z;
+            var endRotation = stepSettings.HeadRotation * headTiltDirection;
+            var r = new Vector3(0,0,10);
+                // playerHeadTr.localRotation = new Quaternion(0,0,10 *headTiltDirection,0);
+                playerHeadTr.Rotate(0,0,10*headTiltDirection -playerHeadTr.localRotation.eulerAngles.z);
+
             while (Time.time - stepStartTime < stepDuration)
             {
                 var timeFrac = (Time.time - stepStartTime) / stepDuration;
@@ -85,6 +99,12 @@ namespace Reflection.Game.Player
                 var newPosition = Vector3.Lerp(position, endPostion, percent);
                 var movement = newPosition - transform.position;
                 cc.Move(movement);
+
+                var newRotation = Mathf.Lerp(rotation, endRotation, timeFrac);
+                var tilt = playerHeadTr.localRotation.eulerAngles.z - newRotation;
+                Debug.Log($"newRotation = {newRotation}");
+                // playerHeadTr.localRotation = new Quaternion(0,0,newRotation,0);
+                // playerHeadTr.DOLocalRotate(new Vector3(0, 0, tilt), 0f);
 
                 yield return new WaitForEndOfFrame();
             }

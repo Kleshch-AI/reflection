@@ -46,11 +46,13 @@ namespace Reflection.Game.Player
             [SerializeField] private float stepDuration;
             [SerializeField] [Range(0f, 1f)] private float stepRandomPercent;
             [SerializeField] private AnimationCurve stepEasing;
+            [SerializeField] private float headRotation;
 
             public float StepLength => stepLength;
             public float StepDuration => stepDuration;
             public float StepRandomPercent => stepRandomPercent;
             public AnimationCurve StepEasing => stepEasing;
+            public float HeadRotation => headRotation;
         }
 
     }
